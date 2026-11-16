@@ -45,24 +45,18 @@ jobs:
 
       - name: Extract project
         run: |
-          mkdir extracted
+          mkdir -p extracted
           unzip -q NOVA-Launcher-Android.zip -d extracted
 
-      - name: Find Android project
+      - name: Inspect project files
         run: |
-          find extracted -name gradlew -type f
+          echo "===== ZIP CONTENTS ====="
+          unzip -l NOVA-Launcher-Android.zip | head -n 120
+          echo "===== EXTRACTED FILES ====="
+          find extracted -maxdepth 7 -type f | head -n 150
+          echo "===== GRADLE FILES ====="
+          find extracted -type f \( -name "gradlew" -o -name "settings.gradle" -o -name "settings.gradle.kts" -o -name "build.gradle" -o -name "build.gradle.kts" \)
 
-      - name: Build APK
+      - name: Stop before build for inspection
         run: |
-          GRADLEW=$(find extracted -name gradlew -type f | head -n 1)
-          test -n "$GRADLEW"
-          chmod +x "$GRADLEW"
-          cd "$(dirname "$GRADLEW")"
-          ./gradlew --no-daemon :app:assembleDebug
-
-      - name: Save APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: NOVA-Launcher-APK
-          path: extracted/**/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          echo "Inspection complete. Waiting to identify the actual Android project structure."
