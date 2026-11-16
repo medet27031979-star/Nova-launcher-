@@ -22,7 +22,15 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+            - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses
+
       - name: Install SDK dependencies
+        run: |
+          sdkmanager "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;27.1.12297006" \
+            "cmake;3.22.1"
         run: |
           sdkmanager "platforms;android-35" \
             "build-tools;35.0.0" \
