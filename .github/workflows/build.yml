@@ -26,7 +26,7 @@ jobs:
           SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)
 
           if [ -z "$SDKMANAGER" ]; then
-            echo "ERROR: sdkmanager was not found"
+            echo "ERROR: sdkmanager not found"
             exit 1
           fi
 
@@ -48,15 +48,42 @@ jobs:
           mkdir -p extracted
           unzip -q NOVA-Launcher-Android.zip -d extracted
 
-      - name: Inspect project files
+      - name: Install Gradle
+        shell: bash
         run: |
-          echo "===== ZIP CONTENTS ====="
-          unzip -l NOVA-Launcher-Android.zip | head -n 120
-          echo "===== EXTRACTED FILES ====="
-          find extracted -maxdepth 7 -type f | head -n 150
-          echo "===== GRADLE FILES ====="
-          find extracted -type f \( -name "gradlew" -o -name "settings.gradle" -o -name "settings.gradle.kts" -o -name "build.gradle" -o -name "build.gradle.kts" \)
+          PROJECT="extracted/nova-launcher-android"
+          PROPERTIES="$PROJECT/gradle/wrapper/gradle-wrapper.properties"
 
-      - name: Stop before build for inspection
+          if [ ! -f "$PROPERTIES" ]; then
+            echo "ERROR: Gradle wrapper properties not found"
+            exit 1
+          fi
+
+          GRADLE_FILE=$(grep -oE 'gradle-[0-9.]+-bin.zip' "$PROPERTIES" | head -n 1)
+          if [ -z "$GRADLE_FILE" ]; then
+            echo "ERROR: Could not determine Gradle version"
+            cat "$PROPERTIES"
+            exit 1
+          fi
+
+          GRADLE_VERSION="${GRADLE_FILE#gradle-}"
+          GRADLE_VERSION="${GRADLE_VERSION%-bin.zip}"
+
+          echo "Installing Gradle $GRADLE_VERSION"
+
+          curl -fL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o gradle.zip
+          mkdir -p "$RUNNER_TEMP/gradle"
+          unzip -q gradle.zip -d "$RUNNER_TEMP/gradle"
+
+          echo "$RUNNER_TEMP/gradle/gradle-${GRADLE_VERSION}/bin" >> "$GITHUB_PATH"
+
+      - name: Build NOVA APK
         run: |
-          echo "Inspection complete. Waiting to identify the actual Android project structure."
+          gradle --no-daemon -p extracted/nova-launcher-android :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-Launcher-APK
+          path: extracted/nova-launcher-android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
