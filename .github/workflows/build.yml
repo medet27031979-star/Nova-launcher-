@@ -48,28 +48,37 @@ jobs:
           mkdir -p extracted
           unzip -q NOVA-Launcher-Android.zip -d extracted
 
+      - name: Fix JNI version
+        shell: bash
+        run: |
+          FILE="extracted/nova-launcher-android/app/src/main/cpp/nova_jni.cpp"
+
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: JNI source file missing"
+            exit 1
+          fi
+
+          sed -i 's/JNI_VERSION_1_8/JNI_VERSION_1_6/g' "$FILE"
+
+          echo "Verified JNI version:"
+          grep -n 'vmArgs.version' "$FILE"
+
       - name: Install Gradle
         shell: bash
         run: |
           PROJECT="extracted/nova-launcher-android"
           PROPERTIES="$PROJECT/gradle/wrapper/gradle-wrapper.properties"
 
-          if [ ! -f "$PROPERTIES" ]; then
-            echo "ERROR: Gradle wrapper properties not found"
-            exit 1
-          fi
-
           GRADLE_FILE=$(grep -oE 'gradle-[0-9.]+-bin.zip' "$PROPERTIES" | head -n 1)
+
           if [ -z "$GRADLE_FILE" ]; then
-            echo "ERROR: Could not determine Gradle version"
+            echo "ERROR: Gradle version not found"
             cat "$PROPERTIES"
             exit 1
           fi
 
           GRADLE_VERSION="${GRADLE_FILE#gradle-}"
           GRADLE_VERSION="${GRADLE_VERSION%-bin.zip}"
-
-          echo "Installing Gradle $GRADLE_VERSION"
 
           curl -fL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o gradle.zip
           mkdir -p "$RUNNER_TEMP/gradle"
